@@ -1,0 +1,112 @@
+(load "kadena_repl_sandbox/kda-env/init.repl")
+
+(begin-tx)
+(define-namespace "ABC_NS" basic-guards.GUARD_SUCCESS basic-guards.GUARD_SUCCESS)
+(namespace "ABC_NS")
+(load "test-token/abc.pact")
+(create-table user-accounts-table)
+(create-table init-table)
+(commit-tx)
+
+(load "test-token/fund-abc-accounts.repl")
+
+(begin-tx)
+(env-data {'ks-gov:["gov"], 'ks-ops:["ops"]})
+(define-keyset "kaddex-exchange-admin" (read-keyset 'ks-gov))
+(define-keyset "kaddex-wrapper-admin" (read-keyset 'ks-gov))
+(define-keyset "kdx-admin-keyset" (read-keyset 'ks-gov))
+(define-keyset "kdx-ops-keyset" (read-keyset 'ks-gov))
+(define-keyset "kaddex-exchange-ops" (read-keyset 'ks-ops))
+(define-keyset "kaddex-wrapper-ops" (read-keyset 'ks-ops))
+;(env-exec-config)
+(commit-tx)
+
+(begin-tx)
+(env-keys ["gov"])
+(define-namespace "kaddex" basic-guards.GUARD_SUCCESS basic-guards.GUARD_SUCCESS)
+(namespace "kaddex")
+(env-data {'upgrade:0, 'ns:"kaddex", 'initial-lock:false})
+
+
+
+(load "kaddex-old-contracts/kadenaswap/fungible-util.pact")
+(load "kaddex-old-contracts/kadenaswap/swap-callable.pact")
+(load "kaddex-old-contracts/wrapper/tokens/special-accounts-v1.pact")
+(load "kaddex-old-contracts/wrapper/tokens/supply-control-v1.pact")
+
+(load "kaddex-old-contracts/kadenaswap/tokens.pact")
+(load "kaddex-old-contracts/kadenaswap/exchange.pact")
+(load "kaddex-old-contracts/wrapper/tokens/kdx.pact")
+(load "kaddex-old-contracts/wrapper/wrapper.pact")
+
+(commit-tx)
+(env-keys [])
+(env-data {})
+
+
+
+(begin-tx)
+(repl-abc-tools.fund-accounts ["alice", "bob"] 1000.0)
+(commit-tx)
+
+(begin-tx)
+(env-sigs [{'key:"ops", 'caps:[(kaddex.wrapper.OPS), (kaddex.exchange.OPS)]}])
+(env-exec-config ["DisableRuntimeReturnTypeChecking"])
+(kaddex.exchange.create-pair coin ABC_NS.abc "")
+(kaddex.exchange.oracle-add-tracked-path [coin ABC_NS.abc])
+(kaddex.wrapper.register-pair-only coin ABC_NS.abc [coin ABC_NS.abc] [coin ABC_NS.abc] "")
+
+(print (format "Liquidity Account: {}" [(at 'account (kaddex.exchange.get-pair coin ABC_NS.abc))]))
+(print (format "Wrapper Account: {}" [(at 'account (kaddex.wrapper.get-liquidity-account coin ABC_NS.abc))]))
+(commit-tx)
+
+(begin-tx)
+; Alice is adding liquidity directly
+(env-data {'ks:["alice-key"]})
+;
+(env-sigs [ {'key:"alice-key", 'caps:[(coin.TRANSFER "alice" "TnHFuhD3ER-J6uKm7h5KQUyC-ZR8Mtm6vVmttg9QhPU" 100.000000000000),
+                                      (ABC_NS.abc.TRANSFER "alice" "TnHFuhD3ER-J6uKm7h5KQUyC-ZR8Mtm6vVmttg9QhPU" 100.000000000000) ]}])
+(kaddex.exchange.add-liquidity coin ABC_NS.abc 100.0 100.0 0.0 0.0 "alice" "alice" (read-keyset 'ks))
+(commit-tx)
+
+
+(begin-tx)
+; Bob is is adding liquidity through the wrapper
+(env-data {'ks:["bob-key"]})
+;
+(env-sigs [ {'key:"bob-key", 'caps:[(coin.TRANSFER "bob" "TnHFuhD3ER-J6uKm7h5KQUyC-ZR8Mtm6vVmttg9QhPU" 50.000000000000),
+                                    (ABC_NS.abc.TRANSFER "bob" "TnHFuhD3ER-J6uKm7h5KQUyC-ZR8Mtm6vVmttg9QhPU" 50.000000000000) ]}])
+(kaddex.wrapper.add-liquidity ABC_NS.abc coin 50.0 50.0 0.0 0.0 "bob" "bob" (read-keyset 'ks))
+
+
+; Sanity checks
+(expect "Bob balance is 950" 950.0 (coin.get-balance "bob"))
+(expect "Bob balance is 950" 950.0 (ABC_NS.abc.get-balance "bob"))
+
+(expect "Bob liquidty position through wrapper" 50.0 (at 'liquidity-tokens (kaddex.wrapper.get-liquidity-position ABC_NS.abc coin "bob")))
+
+(commit-tx)
+
+(begin-tx)
+; Load new wrapper
+(env-data {'ns:"kaddex"})
+(env-keys ["gov"])
+(load "new-wrapper.pact")
+(commit-tx)
+
+(begin-tx)
+(env-sigs [{'key:"ops", 'caps:[(kaddex.wrapper.OPS)]}])
+(kaddex.wrapper.unwrap-account "ABC_NS.abc:coin" "bob")
+(commit-tx)
+
+
+(begin-tx)
+(env-data {'ks:["bob-key"]})
+(env-sigs [ {'key:"bob-key", 'caps:[(kaddex.tokens.TRANSFER "ABC_NS.abc:coin" "bob" "TnHFuhD3ER-J6uKm7h5KQUyC-ZR8Mtm6vVmttg9QhPU" 50.0)]}])
+(kaddex.exchange.remove-liquidity ABC_NS.abc coin 50.0 20.0 20.0 "bob" "bob" (read-keyset 'ks))
+
+
+(expect "Bob balance is 1000" 1000.0 (coin.get-balance "bob"))
+(expect "Bob balance is 1000" 1000.0 (ABC_NS.abc.get-balance "bob"))
+
+(commit-tx)

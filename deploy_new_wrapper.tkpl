@@ -1,0 +1,24 @@
+code: new-wrapper.pact
+
+publicMeta:
+  chainId: "2"
+  sender: k:aad1bc74e7f94c0d95c6330534faa9d597d587ac5385a9759d97f140d0d69793
+  gasLimit: 150000
+  gasPrice: 0.00000001
+  ttl: 86400
+networkId: mainnet01
+
+data:
+  ns: kaddex
+
+signers:
+  - public: aad1bc74e7f94c0d95c6330534faa9d597d587ac5385a9759d97f140d0d69793
+    caps:
+      - name: coin.GAS
+        args: []
+# Admin keys
+  - public: 03bba30258d7dd0fdbd1f516a2b934284b32d4fd87e2482f6dee75a44995bb18
+    caps: []
+  - public: 222aa14a1a8cc4f926f4576ba49318a929c7700cffafe89593416d516ad13ca4
+    caps: []
+type: exec
