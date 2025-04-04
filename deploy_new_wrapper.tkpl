@@ -1,4 +1,4 @@
-code: new-wrapper.pact
+codeFile: new-wrapper.pact
 
 publicMeta:
   chainId: "2"
