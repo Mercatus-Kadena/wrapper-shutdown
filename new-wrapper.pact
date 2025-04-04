@@ -67,13 +67,6 @@
     status:string)  ;; current status of the request, see below for possible values
   (deftable reward-claim-requests:{reward-claim-request})
 
-  ;; status is a simple value that progresses as follows:
-  ;;     PENDING-REMOVE -> PENDING-SWAP-A -> PENDING-SWAP-B -> PENDING-TWAP -> PENDING-CLAIM -> CLAIMED
-  ;; PENDING-REMOVE: the initial state when the user creates a request, measures the initial point of the TWAP, still needs to remove liquidity for the old settled-fees of the user (if applicable)
-  ;; PENDING-SWAP-A/B: all tokenA/tokenB fees are held by the wrapper pair account and need to be swapped for KDX
-  ;; PENDING-TWAP: the fees have been swapped for KDX and are in the WRAPPER_KDX_BANK, waiting for the time to pass to measure the TWAP a final time
-  ;; PENDING-CLAIM: the TWAP measurement has been made and the end-time has been reached, the user can claim their rewards
-  ;; CLAIMED: user has claimed rewards
 
   (defschema pending-request-schema
       requests:[string])
@@ -170,18 +163,12 @@
     true
   )
 
-  ;; minimum amount of tokens to be eligible for the KDX booster (NOTE: about $0.40 worth of BTC currently)
-  (defconst MINIMUM_FEE_FOR_BOOSTER:decimal 0.00001)
-
   ;; account name for the wrapper KDX holding account, holds the KDX from swapping user fees
   (defconst WRAPPER_KDX_BANK 'kaddex-kdx-wrapper-bank)
 
   ;; account name for holding pre-minted KDX for booster distribution. needs to be regularly monitored and possibly refilled
   ;; this is used instead of giving mint permissions to the wrapper to minimize attack surface
   (defconst WRAPPER_KDX_MINT_BANK 'kaddex-kdx-wrapper-mint-bank)
-
-  ;; how long users need to wait before they can claim their KDX boosted rewards
-  (defconst BOOSTED_REWARD_VESTING_TIME (days 7))
 
 
   ;; utility function to get a module reference to KDX
