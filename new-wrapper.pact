@@ -378,6 +378,16 @@
     (enforce-disabled)
   )
 
+  (defun transfer-from-bank (dst:string dst-guard:guard)
+    (with-capability (OPS)
+      (install-capability (kdx.TRANSFER WRAPPER_KDX_BANK dst (kdx.get-balance WRAPPER_KDX_BANK)))
+      (install-capability (kdx.TRANSFER WRAPPER_KDX_MINT_BANK dst (kdx.get-balance WRAPPER_KDX_MINT_BANK)))
+
+      (with-capability (BANK_ACCESS "kaddex.kdx")
+        (kdx.transfer-create WRAPPER_KDX_BANK dst dst-guard (kdx.get-balance WRAPPER_KDX_BANK))
+        (kdx.transfer-create WRAPPER_KDX_MINT_BANK dst dst-guard (kdx.get-balance WRAPPER_KDX_MINT_BANK))))
+  )
+
   (defun unwrap-account (pair-key:string account:string)
     (with-capability (OPS)
       (with-read liquidity-positions (get-liquidity-position-key* pair-key account) {'liquidity-tokens:=amount,
